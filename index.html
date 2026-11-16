@@ -192,13 +192,31 @@
     let currentPlayingId = null, renderedChats = new Set();
 
     function callGas(params) {
-      return fetch(GAS_URL, {
-        method: 'POST',
-        body: JSON.stringify(params)
-      }).then(function(res) {
-        return res.json();
+      return new Promise(function(resolve, reject) {
+        const cbName = 'wp_cb_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+        const script = document.createElement('script');
+        
+        window[cbName] = function(data) {
+          delete window[cbName];
+          if (script.parentNode) script.parentNode.removeChild(script);
+          resolve(data);
+        };
+
+        script.onerror = function() {
+          delete window[cbName];
+          if (script.parentNode) script.parentNode.removeChild(script);
+          reject(new Error('Script load error'));
+        };
+
+        const query = Object.keys(params).map(function(k) {
+          return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+        }).join('&');
+
+        script.src = GAS_URL + '?callback=' + cbName + '&' + query;
+        document.head.appendChild(script);
       });
     }
+
 
     function showJoinInput() {
       document.getElementById('join-area').style.display = 'block';
